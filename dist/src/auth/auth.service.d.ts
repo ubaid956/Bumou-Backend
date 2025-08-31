@@ -1,0 +1,97 @@
+import { LoginDto, RegisterDto } from './dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { User } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { I18nService } from 'nestjs-i18n';
+import { OtpService } from 'src/otp/otp.service';
+import { VerifyOtpDto } from './dto/otp.dto';
+export declare class AuthService {
+    private prisma;
+    private jwt;
+    private config;
+    private otpService;
+    private readonly i18n;
+    constructor(prisma: PrismaService, jwt: JwtService, config: ConfigService, otpService: OtpService, i18n: I18nService);
+    verifyJwt(jwt: string): Promise<any>;
+    getCurrentUser(user: User): Promise<{
+        access_token: string;
+        id: string;
+        email: string;
+        username: string;
+        phone: string;
+        createdAt: Date;
+        updatedAt: Date;
+        password: string;
+        userType: import(".prisma/client").$Enums.UserType;
+        local: string | null;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        address: string | null;
+        city: string | null;
+        state: string | null;
+        zip: string | null;
+        country: string | null;
+        schoolName: string | null;
+        className: string | null;
+        teacherName: string | null;
+        isVerified: boolean;
+        isBlocked: boolean;
+        isOnline: boolean;
+        isDeleted: boolean;
+        isHelping: boolean;
+        Aliyun_token: string | null;
+        device_type: string | null;
+    }>;
+    _registerDevice(Aliyun_token: string, device_type: string, userId: string): Promise<void>;
+    isUsernameAvailable(username: string): Promise<{
+        isAvailable: boolean;
+    }>;
+    isEmailAvailable(email: string): Promise<{
+        isAvailable: boolean;
+    }>;
+    isPhoneAvailable(phone: string): Promise<{
+        isAvailable: boolean;
+    }>;
+    register(registerDto: RegisterDto): Promise<{
+        message: string;
+        retryAfter: number;
+        userDetials: RegisterDto;
+    }>;
+    login(loginDto: LoginDto): Promise<{
+        message: string;
+        retryAfter: number;
+    }>;
+    verifyOtp(phone: string, otp: string, dto: VerifyOtpDto): Promise<{
+        access_token: string;
+        id: string;
+        email: string;
+        username: string;
+        phone: string;
+        createdAt: Date;
+        updatedAt: Date;
+        password: string;
+        userType: import(".prisma/client").$Enums.UserType;
+        local: string | null;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        address: string | null;
+        city: string | null;
+        state: string | null;
+        zip: string | null;
+        country: string | null;
+        schoolName: string | null;
+        className: string | null;
+        teacherName: string | null;
+        isVerified: boolean;
+        isBlocked: boolean;
+        isOnline: boolean;
+        isDeleted: boolean;
+        isHelping: boolean;
+        Aliyun_token: string | null;
+        device_type: string | null;
+    }>;
+    signToken(user: User): Promise<string>;
+}

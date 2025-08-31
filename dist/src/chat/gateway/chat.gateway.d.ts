@@ -1,0 +1,52 @@
+import { OnModuleInit } from '@nestjs/common';
+import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { AuthService } from 'src/auth/auth.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { ChatMessageDto, CallDto } from '../dto';
+import { MessageService } from '../service/message.service';
+import { HelpChatService } from '../service/help-chat.service';
+export declare class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+    private authService;
+    private messageService;
+    private prisma;
+    private helpChatService;
+    server: Server;
+    constructor(authService: AuthService, messageService: MessageService, prisma: PrismaService, helpChatService: HelpChatService);
+    private static connectionEvent;
+    private static chatEvent;
+    private static newMessageEvent;
+    private static helpRequestEvent;
+    private static helpRequestRemoveEvent;
+    private static helpMessageEvent;
+    private static commentNotificationEvent;
+    onModuleInit(): Promise<void>;
+    emitHelpRequest(payload: any): void;
+    emitHelpRequestRemove(helpId: string): void;
+    emitHelpMessage(payload: any, userIds: string[]): void;
+    emitCommentNotification(payload: any, userId: string): void;
+    emitMessageDeleted(messageId: string, chatroomId: string): void;
+    handleConnection(socket: Socket): Promise<void>;
+    handleDeleteMessage(client: Socket, data: {
+        messageId: string;
+    }): Promise<void>;
+    addUserSession(sessionId: string, userId: string): Promise<void>;
+    deleteUserSession(sessionId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userId: string;
+        token: string;
+    }>;
+    handleDisconnect(client: Socket): Promise<void>;
+    handleMessage(client: Socket, message: ChatMessageDto): Promise<void>;
+    handleHelpMessage(client: Socket, payload: any): Promise<void>;
+    handleHelpRequestEvent(client: Socket, payload: any): Promise<void>;
+    handleHelpMessageEvent(client: Socket, payload: any): Promise<void>;
+    handleMakeCall(client: Socket, data: CallDto): Promise<void>;
+    handleAnswerCall(client: Socket, data: CallDto): Promise<void>;
+    handleEndCall(client: Socket, data: CallDto): Promise<void>;
+    handleIceCandidate(client: Socket, data: CallDto): void;
+    private generateCallId;
+    private validateCallPayload;
+}
