@@ -46,8 +46,16 @@ let HelpController = class HelpController {
     async getHelpMessages(userId, helpId) {
         return await this.service.getHelpMessages(userId, helpId);
     }
-    async deleteHelpMessages(helpId, userId) {
-        return await this.service.deleteHelpMessages(helpId, userId);
+    async deleteHelpMessages(messageId, userId, user) {
+        console.log('Controller deleteHelpMessages:', {
+            messageId,
+            userId,
+            userType: typeof userId,
+            userObject: user,
+            userObjectId: user?.id,
+            userObjectIdType: typeof user?.id
+        });
+        return await this.service.deleteHelpMessages(messageId, userId);
     }
     async markMessageAsRead(userId, messageId, chatroomId) {
         return this.service.markMessageAsRead(userId, messageId, chatroomId);
@@ -126,8 +134,9 @@ __decorate([
     (0, common_1.Delete)('help_messages/delete/:id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, decorator_1.GetUser)('id')),
+    __param(2, (0, decorator_1.GetUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], HelpController.prototype, "deleteHelpMessages", null);
 __decorate([

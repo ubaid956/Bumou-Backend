@@ -599,7 +599,7 @@ export declare class HelpService {
         requestedById: string;
         helperId: string | null;
     }>;
-    deleteHelpMessages(helpId: string, userId: string): Promise<{
+    deleteHelpMessages(messageId: string, userId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;

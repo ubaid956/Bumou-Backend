@@ -43,6 +43,13 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
             .to(userIds)
             .emit(ChatGateway_1.helpMessageEvent, payload);
     }
+    emitHelpMessageDeleted(messageId, helpId, deletedBy) {
+        this.server.emit(ChatGateway_1.helpMessageDeletedEvent, {
+            messageId,
+            helpId,
+            deletedBy
+        });
+    }
     emitCommentNotification(payload, userId) {
         this.server
             .to(userId)
@@ -236,6 +243,7 @@ ChatGateway.newMessageEvent = 'new-message';
 ChatGateway.helpRequestEvent = 'help-request';
 ChatGateway.helpRequestRemoveEvent = 'help-request-remove';
 ChatGateway.helpMessageEvent = 'help-message';
+ChatGateway.helpMessageDeletedEvent = 'help_message_deleted';
 ChatGateway.commentNotificationEvent = 'comment-notification';
 __decorate([
     (0, websockets_1.WebSocketServer)(),

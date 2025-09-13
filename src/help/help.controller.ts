@@ -17,7 +17,7 @@ import { HelpMessageRequestDto } from './dto/accept-help.dto';
 
 @Controller('help')
 export class HelpController {
-  constructor(private readonly service: HelpService) {}
+  constructor(private readonly service: HelpService) { }
 
   @UseGuards(JwtGuard)
   @Post('ask')
@@ -73,12 +73,21 @@ export class HelpController {
   @UseGuards(JwtGuard)
   @Delete('help_messages/delete/:id')
   async deleteHelpMessages(
-    @Param('id') helpId: string,
+    @Param('id') messageId: string,
     @GetUser('id') userId: string,
-    ) {
-    return await this.service.deleteHelpMessages(helpId, userId);
+    @GetUser() user: any,
+  ) {
+    console.log('Controller deleteHelpMessages:', {
+      messageId,
+      userId,
+      userType: typeof userId,
+      userObject: user,
+      userObjectId: user?.id,
+      userObjectIdType: typeof user?.id
+    });
+    return await this.service.deleteHelpMessages(messageId, userId);
   }
-  
+
   @UseGuards(JwtGuard)
   @Put('mark-read/:chatroomId/:messageId')
   async markMessageAsRead(

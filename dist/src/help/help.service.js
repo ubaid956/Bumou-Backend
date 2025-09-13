@@ -282,17 +282,57 @@ let HelpService = HelpService_1 = class HelpService {
     async deleteHelp(helpId) {
         return this.prisma.help.delete({ where: { id: helpId } });
     }
-    async deleteHelpMessages(helpId, userId) {
+    async deleteHelpMessages(messageId, userId) {
         const message = await this.prisma.helpMessage.findUnique({
-            where: { id: helpId },
+            where: { id: messageId },
+            include: {
+                help: {
+                    include: {
+                        requestedBy: true,
+                        helper: true,
+                    },
+                },
+            },
         });
         if (!message) {
             throw new common_1.ForbiddenException('Message not found');
         }
-        if (message.senderId !== userId) {
+        console.log('Delete message debug:', {
+            messageId,
+            userId,
+            userIdType: typeof userId,
+            senderId: message.senderId,
+            senderIdType: typeof message.senderId,
+            requestedById: message.help.requestedById,
+            helperId: message.help.helperId,
+            isSender: message.senderId === userId,
+            isRequestedBy: message.help.requestedById === userId,
+            isHelper: message.help.helperId === userId,
+            stringComparison: {
+                senderIdEqualsUserId: message.senderId === userId,
+                requestedByIdEqualsUserId: message.help.requestedById === userId,
+                helperIdEqualsUserId: message.help.helperId === userId,
+            },
+            messageObject: message,
+        });
+        const canDelete = message.senderId === userId ||
+            message.help.requestedById === userId ||
+            message.help.helperId === userId;
+        if (!canDelete) {
             throw new common_1.ForbiddenException('You do not have permission to delete this message');
         }
-        return this.prisma.helpMessage.delete({ where: { id: helpId } });
+        const deletedMessage = await this.prisma.helpMessage.delete({
+            where: { id: messageId }
+        });
+        const userIds = [];
+        if (message.help.requestedById) {
+            userIds.push(message.help.requestedById);
+        }
+        if (message.help.helperId) {
+            userIds.push(message.help.helperId);
+        }
+        this.chatGateway.emitHelpMessageDeleted(messageId, message.helpId, userId);
+        return deletedMessage;
     }
     async getHelpMessages(userId, helpId) {
         const helpMessages = await this.prisma.helpMessage.findMany({

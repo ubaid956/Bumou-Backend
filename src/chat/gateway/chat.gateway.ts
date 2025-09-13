@@ -18,8 +18,7 @@ import { HelpChatService } from '../service/help-chat.service';
 
 @WebSocketGateway()
 export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
-{
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer()
   server: Server;
 
@@ -28,7 +27,7 @@ export class ChatGateway
     private messageService: MessageService,
     private prisma: PrismaService,
     private helpChatService: HelpChatService, // private helpService: HelpService,
-  ) {}
+  ) { }
 
   private static connectionEvent: string = 'connection';
   private static chatEvent: string = 'chat';
@@ -36,6 +35,7 @@ export class ChatGateway
   private static helpRequestEvent: string = 'help-request';
   private static helpRequestRemoveEvent: string = 'help-request-remove';
   private static helpMessageEvent: string = 'help-message';
+  private static helpMessageDeletedEvent: string = 'help_message_deleted';
   private static commentNotificationEvent: string = 'comment-notification';
 
   async onModuleInit() {
@@ -54,6 +54,14 @@ export class ChatGateway
     this.server
       .to(userIds)
       .emit(ChatGateway.helpMessageEvent, payload);
+  }
+
+  emitHelpMessageDeleted(messageId: string, helpId: string, deletedBy: string) {
+    this.server.emit(ChatGateway.helpMessageDeletedEvent, {
+      messageId,
+      helpId,
+      deletedBy
+    });
   }
 
   emitCommentNotification(payload: any, userId: string) {
@@ -211,10 +219,10 @@ export class ChatGateway
   }
 
   @SubscribeMessage(ChatGateway.helpRequestEvent)
-  async handleHelpRequestEvent(client: Socket, @MessageBody() payload: any) {}
+  async handleHelpRequestEvent(client: Socket, @MessageBody() payload: any) { }
 
   @SubscribeMessage(ChatGateway.helpMessageEvent)
-  async handleHelpMessageEvent(client: Socket, @MessageBody() payload: any) {}
+  async handleHelpMessageEvent(client: Socket, @MessageBody() payload: any) { }
 
   // //! Calling Events //TODO: Move to a separate gateway
   @SubscribeMessage('newCall')
@@ -240,7 +248,7 @@ export class ChatGateway
       const callId = this.generateCallId(data.senderId, data.receiverId);
 
       this.server.to(data.receiverId).emit('answerCall', data);
-    } catch (error) {}
+    } catch (error) { }
   }
 
   @SubscribeMessage('endCall')
@@ -251,7 +259,7 @@ export class ChatGateway
       const callId = this.generateCallId(data.senderId, data.receiverId);
 
       this.server.to(data.receiverId).emit('endCall', data);
-    } catch (error) {}
+    } catch (error) { }
   }
 
   @SubscribeMessage('signal')
@@ -260,7 +268,7 @@ export class ChatGateway
       this.validateCallPayload(data);
 
       this.server.to(data.receiverId).emit('signal', data);
-    } catch (error) {}
+    } catch (error) { }
   }
 
   private generateCallId(callerId: string, receiverId: string) {

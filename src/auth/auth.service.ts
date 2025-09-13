@@ -182,6 +182,17 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     try {
+      // Check if phone number is already registered
+      const existingUser = await this.prisma.user.findFirst({
+        where: { phone: registerDto.phone },
+      });
+
+      if (existingUser) {
+        throw new ForbiddenException(
+          'This Phone number is already Register try again with another one',
+        );
+      }
+
       if (!registerDto.email || registerDto.email === '') {
         registerDto.email = registerDto.username + '@bumou.com';
       }
@@ -198,7 +209,11 @@ export class AuthService {
         userDetials: registerDto,
       };
     } catch (error) {
-      // handle Prisma errors
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      // handle other Prisma errors
+      throw error;
     }
   }
 

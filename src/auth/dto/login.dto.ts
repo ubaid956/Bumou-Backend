@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Matches } from 'class-validator';
 import { UserType } from '../../enum';
 
 export class LoginDto {
-  @IsString()
+  @IsPhoneNumber()
   @IsNotEmpty()
   phonenumber: string;
 

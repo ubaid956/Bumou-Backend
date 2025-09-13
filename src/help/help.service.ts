@@ -317,23 +317,70 @@ export class HelpService {
     return this.prisma.help.delete({ where: { id: helpId } });
   }
 
-  async deleteHelpMessages(helpId: string, userId: string) {
+  async deleteHelpMessages(messageId: string, userId: string) {
     const message = await this.prisma.helpMessage.findUnique({
-      where: { id: helpId },
+      where: { id: messageId },
+      include: {
+        help: {
+          include: {
+            requestedBy: true,
+            helper: true,
+          },
+        },
+      },
     });
 
     if (!message) {
       throw new ForbiddenException('Message not found');
     }
 
-    // Optionally, you might want to check if the user is authorized to delete this message.
-    if (message.senderId !== userId) {
+    // Debug logging
+    console.log('Delete message debug:', {
+      messageId,
+      userId,
+      userIdType: typeof userId,
+      senderId: message.senderId,
+      senderIdType: typeof message.senderId,
+      requestedById: message.help.requestedById,
+      helperId: message.help.helperId,
+      isSender: message.senderId === userId,
+      isRequestedBy: message.help.requestedById === userId,
+      isHelper: message.help.helperId === userId,
+      stringComparison: {
+        senderIdEqualsUserId: message.senderId === userId,
+        requestedByIdEqualsUserId: message.help.requestedById === userId,
+        helperIdEqualsUserId: message.help.helperId === userId,
+      },
+      messageObject: message,
+    });
+
+    // Allow deletion if user is the sender OR is part of the help conversation
+    const canDelete = message.senderId === userId ||
+      message.help.requestedById === userId ||
+      message.help.helperId === userId;
+
+    if (!canDelete) {
       throw new ForbiddenException(
         'You do not have permission to delete this message',
       );
     }
 
-    return this.prisma.helpMessage.delete({ where: { id: helpId } });
+    const deletedMessage = await this.prisma.helpMessage.delete({
+      where: { id: messageId }
+    });
+
+    // Emit socket event for real-time deletion
+    const userIds = [];
+    if (message.help.requestedById) {
+      userIds.push(message.help.requestedById);
+    }
+    if (message.help.helperId) {
+      userIds.push(message.help.helperId);
+    }
+
+    this.chatGateway.emitHelpMessageDeleted(messageId, message.helpId, userId);
+
+    return deletedMessage;
   }
 
   async getHelpMessages(userId: string, helpId: string) {

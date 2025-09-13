@@ -593,7 +593,7 @@ export declare class HelpController {
         helperId: string | null;
     })[]>;
     getHelpMessages(userId: string, helpId: string): Promise<any>;
-    deleteHelpMessages(helpId: string, userId: string): Promise<{
+    deleteHelpMessages(messageId: string, userId: string, user: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;

@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   Length,
   Matches,
@@ -33,7 +34,7 @@ export class RegisterDto {
   // @Length(5, 20, { message: '密码必须介于 5 到 20 个字符之间' })
   // password: string;
 
-  @IsString()
+  @IsPhoneNumber()
   @IsNotEmpty()
   phone: string;
 

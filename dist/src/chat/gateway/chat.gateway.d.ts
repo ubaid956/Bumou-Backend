@@ -19,11 +19,13 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     private static helpRequestEvent;
     private static helpRequestRemoveEvent;
     private static helpMessageEvent;
+    private static helpMessageDeletedEvent;
     private static commentNotificationEvent;
     onModuleInit(): Promise<void>;
     emitHelpRequest(payload: any): void;
     emitHelpRequestRemove(helpId: string): void;
     emitHelpMessage(payload: any, userIds: string[]): void;
+    emitHelpMessageDeleted(messageId: string, helpId: string, deletedBy: string): void;
     emitCommentNotification(payload: any, userId: string): void;
     emitMessageDeleted(messageId: string, chatroomId: string): void;
     handleConnection(socket: Socket): Promise<void>;
