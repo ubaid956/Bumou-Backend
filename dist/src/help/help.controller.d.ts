@@ -593,6 +593,9 @@ export declare class HelpController {
         helperId: string | null;
     })[]>;
     getHelpMessages(userId: string, helpId: string): Promise<any>;
+    markHelpMessageAsRead(userId: string, messageId: string): Promise<{
+        success: boolean;
+    }>;
     deleteHelpMessages(messageId: string, userId: string, user: any): Promise<{
         id: string;
         createdAt: Date;

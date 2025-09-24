@@ -90,4 +90,9 @@ export class VerifyOtpDto {
   @IsString()
   @IsOptional()
   local?: string;
+
+  // Optional password to set on user creation via OTP verification
+  @IsOptional()
+  @IsString()
+  password?: string;
 }

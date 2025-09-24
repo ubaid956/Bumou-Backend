@@ -615,6 +615,9 @@ export declare class HelpService {
         helpId: string;
     }>;
     getHelpMessages(userId: string, helpId: string): Promise<any>;
+    markHelpMessageAsRead(userId: string, messageId: string): Promise<{
+        success: boolean;
+    }>;
     markMessageAsRead(userId: string, helpMessageId: string, helpId: string): Promise<{
         id: string;
         createdAt: Date;

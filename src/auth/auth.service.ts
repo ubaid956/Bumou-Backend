@@ -34,44 +34,42 @@ export class AuthService {
   }
 
   async _registerDevice(Aliyun_token: string, device_type: string, userId: string) {
+    const logger = new Logger('AuthService');
+    logger.debug('Registering device token for user: ' + userId);
 
-    this.prisma.userDeviceToken.deleteMany({});
-
-    const tokens = await this.prisma.userDeviceToken.findMany({
+    // Try to find an existing token record for this user and token
+    const existing = await this.prisma.userDeviceToken.findFirst({
       where: {
-        AND: [
-          {
-            userId: { equals: userId },
-          },
-        ],
+        userId: userId,
+        token: Aliyun_token,
       },
     });
 
-    const logger = new Logger('AuthService');
-    logger.debug('Token created successfully 1 --> ' + tokens.length);
-    logger.debug('Token created successfully 2 --> ' + device_type);
-    logger.debug('Token created successfully 3 --> ' + userId);
-    logger.debug('Token created successfully 3 --> ' + Aliyun_token);
-    if (tokens.length == 0) {
-      await this.prisma.userDeviceToken.create({
-        data: {
-          token: Aliyun_token,
-          userId: userId,
-          device_type: device_type,
-        },
-      });
-
-      logger.debug('Token created successfully --> ' + Aliyun_token);
+    if (!existing) {
+      // If a record exists for the user but with a different token, update it.
+      const userTokens = await this.prisma.userDeviceToken.findMany({ where: { userId } });
+      if (userTokens.length === 0) {
+        await this.prisma.userDeviceToken.create({
+          data: {
+            token: Aliyun_token,
+            userId: userId,
+            device_type: device_type,
+          },
+        });
+        logger.debug('Token created successfully --> ' + Aliyun_token);
+      } else {
+        // Update all tokens for this user to the latest value (keeps DB tidy)
+        await this.prisma.userDeviceToken.updateMany({
+          where: { userId: userId },
+          data: {
+            device_type: device_type,
+            token: Aliyun_token,
+          },
+        });
+        logger.debug('Token(s) updated successfully --> ' + Aliyun_token);
+      }
     } else {
-      await this.prisma.userDeviceToken.updateMany({
-        where: { userId: userId },
-        data: {
-          device_type: device_type,
-          token: Aliyun_token,
-        },
-
-      });
-      logger.debug('Token created successfully --> ' + Aliyun_token);
+      logger.debug('Device token already registered for user: ' + userId);
     }
   }
 
@@ -201,6 +199,7 @@ export class AuthService {
 
       console.log('Phone Number (raw): ', registerDto.phone);
 
+      // Do not create user here. User will be created in verifyOtp after OTP verification.
       return {
         message: otpResult.success
           ? 'OTP sent successfully'
@@ -228,15 +227,44 @@ export class AuthService {
         }),
       );
     }
+    // Require password for login (no OTP fallback for login path)
+    if (!loginDto.password) {
+      throw new ForbiddenException(
+        this.i18n.translate('t.password_required', {
+          lang: I18nContext.current().lang,
+        }),
+      );
+    }
 
-    const otpResult = await this.otpService.sendOtp(user.phone);
+    // Ensure user has been OTP-verified
+    if (!user.isVerified) {
+      throw new ForbiddenException(
+        this.i18n.translate('t.user_not_verified', {
+          lang: I18nContext.current().lang,
+        }),
+      );
+    }
 
-    return {
-      message: otpResult.success
-        ? 'OTP sent successfully'
-        : 'Failed to send OTP',
-      retryAfter: otpResult.retryAfter,
-    };
+    const validPassword = await argon.verify(user.password, loginDto.password).catch(() => false);
+    if (!validPassword) {
+      throw new ForbiddenException(
+        this.i18n.translate('t.invalid_password', {
+          lang: I18nContext.current().lang,
+        }),
+      );
+    }
+
+    // Successful password login: sign token and register device if provided
+    const access_token = await this.signToken(user);
+
+    if (loginDto.Aliyun_token && loginDto.device_type) {
+      await this._registerDevice(loginDto.Aliyun_token, loginDto.device_type, user.id);
+    }
+
+    // delete sensitive fields before returning
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...safeUser } = (user as any);
+    return { ...safeUser, access_token };
   }
 
 
@@ -285,6 +313,10 @@ export class AuthService {
 
     if (!user) {
       // Register new user if not found
+      // Hash password if provided, otherwise generate a random password
+      const rawPassword = dto.password ?? Math.random().toString(36).slice(-8);
+      const hashed = await argon.hash(rawPassword);
+
       user = await this.prisma.user.create({
         data: {
           username: dto.username,
@@ -301,11 +333,12 @@ export class AuthService {
           className: dto.className,
           teacherName: dto.teacherName,
           local: dto.local,
-          password: "1233",
-
-
+          password: hashed,
+          isVerified: true, // mark as verified after successful OTP
         },
       });
+
+      // NOTE: If we generated a password, consider returning it in a secure channel or prompting user to set one.
     }
 
     const access_token = await this.signToken(user);

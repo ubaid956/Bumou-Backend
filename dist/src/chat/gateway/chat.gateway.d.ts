@@ -12,6 +12,8 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     private prisma;
     private helpChatService;
     server: Server;
+    private recentMessages;
+    private readonly GATEWAY_DEDUPE_TTL_MS;
     constructor(authService: AuthService, messageService: MessageService, prisma: PrismaService, helpChatService: HelpChatService);
     private static connectionEvent;
     private static chatEvent;
@@ -44,7 +46,6 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     handleMessage(client: Socket, message: ChatMessageDto): Promise<void>;
     handleHelpMessage(client: Socket, payload: any): Promise<void>;
     handleHelpRequestEvent(client: Socket, payload: any): Promise<void>;
-    handleHelpMessageEvent(client: Socket, payload: any): Promise<void>;
     handleMakeCall(client: Socket, data: CallDto): Promise<void>;
     handleAnswerCall(client: Socket, data: CallDto): Promise<void>;
     handleEndCall(client: Socket, data: CallDto): Promise<void>;

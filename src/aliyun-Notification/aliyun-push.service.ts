@@ -37,28 +37,21 @@ export class AliyunPushService {
                 targetValue: params.deviceToken,
                 title: params.title,
                 body: params.content,
-                pushType: 'NOTICE',
-                androidNotifyType: 'BOTH',
-                androidOpenType: 'APPLICATION',
-                androidPopupActivity: 'app.bumoumobile.com.MainActivity',
-                androidPopupTitle: params.title,
-                androidPopupBody: params.content,
-                storeOffline: true,
-                androidNotificationChannel: 'bumou',
-                androidNotificationHonorChannel: 'LOW',
-                androidNotificationXiaomiChannel: '132457',
-                androidMessageOppoNotifyLevel: 2,
-                androidMessageHuaweiCategory: 'VOIP',
-                androidMessageOppoCategory: 'MARKETING',
-                androidMessageVivoCategory: 'MARKETING',
-                androidHuaweiTargetUserType: 0,
-                androidHonorTargetUserType: 0,
-                androidVivoPushMode: 0,
-                androidBadgeClass: 'app.bumoumobile.com.MainActivity',
+                // CRITICAL FIX: Use MESSAGE for background delivery + immediate notification display
+                pushType: 'MESSAGE',
+                // Android notification configuration for system delivery
+                androidNotifyType: 'BOTH', // Both vibrate and sound 
+                androidOpenType: 'APPLICATION', // Open app when tapped
+                storeOffline: true, // Store for offline delivery
+                androidRemind: true, // Enable system alert
+                // CRITICAL: Ensure immediate delivery in all states
+                androidActivity: 'app.bumoumobile.com.MainActivity',
+                androidMusic: 'default', // Use default notification sound
+                androidNotificationBarType: 1, // Show in notification bar
+                androidNotificationBarPriority: 1, // High priority
+                // Custom parameters for routing
                 ...(params.data && { androidExtParameters: JSON.stringify(params.data) })
-            });
-
-            const runtime = new ($Util as any).RuntimeOptions({});
+            }); const runtime = new ($Util as any).RuntimeOptions({});
             const response = await this.client.pushWithOptions(pushRequest, runtime);
 
             this.logger.log(`Android push successful`);
@@ -89,6 +82,10 @@ export class AliyunPushService {
                 iOSBadge: 1,
                 iOSBadgeAutoIncrement: true,
                 iOSMutableContent: true,
+                iOSSound: 'default', // Add default sound
+                iOSSubtitle: params.title,
+                storeOffline: true, // Important: store when app is closed
+                // Remove expireTime for now as it's causing format issues
                 iOSExtParameters: params.data ? JSON.stringify(params.data) : undefined,
             });
 
@@ -117,10 +114,15 @@ export class AliyunPushService {
                 targetValue: params.userId,
                 title: params.title,
                 body: params.content,
-                pushType: 'NOTICE',
+                pushType: 'MESSAGE',
                 androidNotifyType: 'BOTH',
                 androidOpenType: 'APPLICATION',
+                androidNotificationBarType: '1',
+                androidNotificationBarPriority: '2',
+                androidNotificationChannel: 'bumou_default',
+                androidActivity: 'app.bumoumobile.com.MainActivity',
                 storeOffline: true,
+                expireTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
                 iOSApnsEnv: 'PRODUCT',
                 iOSBadgeAutoIncrement: true,
                 ...(params.data && { androidExtParameters: JSON.stringify(params.data) }),

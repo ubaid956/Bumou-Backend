@@ -46,6 +46,9 @@ let HelpController = class HelpController {
     async getHelpMessages(userId, helpId) {
         return await this.service.getHelpMessages(userId, helpId);
     }
+    async markHelpMessageAsRead(userId, messageId) {
+        return await this.service.markHelpMessageAsRead(userId, messageId);
+    }
     async deleteHelpMessages(messageId, userId, user) {
         console.log('Controller deleteHelpMessages:', {
             messageId,
@@ -129,6 +132,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], HelpController.prototype, "getHelpMessages", null);
+__decorate([
+    (0, common_1.UseGuards)(guard_1.JwtGuard),
+    (0, common_1.Post)('messages/:messageId/mark-read'),
+    __param(0, (0, decorator_1.GetUser)('id')),
+    __param(1, (0, common_1.Param)('messageId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], HelpController.prototype, "markHelpMessageAsRead", null);
 __decorate([
     (0, common_1.UseGuards)(guard_1.JwtGuard),
     (0, common_1.Delete)('help_messages/delete/:id'),

@@ -70,6 +70,16 @@ export class HelpController {
     return await this.service.getHelpMessages(userId, helpId);
   }
 
+  // Mark a specific help message as read by current user
+  @UseGuards(JwtGuard)
+  @Post('messages/:messageId/mark-read')
+  async markHelpMessageAsRead(
+    @GetUser('id') userId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return await this.service.markHelpMessageAsRead(userId, messageId);
+  }
+
   @UseGuards(JwtGuard)
   @Delete('help_messages/delete/:id')
   async deleteHelpMessages(

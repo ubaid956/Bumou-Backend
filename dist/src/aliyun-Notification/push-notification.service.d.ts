@@ -5,6 +5,9 @@ export declare class PushNotificationService {
     private readonly userService;
     private readonly aliyunPushService;
     private readonly logger;
+    private recentNotifications;
+    private privateChatNotifications;
+    private readonly DEDUPE_TTL_MS;
     constructor(userService: UserService, aliyunPushService: AliyunPushService);
     sendPushNotification(payload: NotificationPayloadDto): Promise<void>;
     notificationAliPush(payload: NotificationPayloadDto): Promise<void>;
@@ -16,4 +19,5 @@ export declare class PushNotificationService {
         postOwnerId: string;
         postId: string;
     }): Promise<void>;
+    private cleanupOldNotifications;
 }

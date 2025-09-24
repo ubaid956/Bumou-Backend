@@ -390,6 +390,7 @@ export class HelpService {
       },
       include: {
         sender: true,
+        readBy: true,
       },
       take: 100,
       orderBy: {
@@ -397,6 +398,39 @@ export class HelpService {
       },
     });
     return helpMessages;
+  }
+
+  async markHelpMessageAsRead(userId: string, messageId: string) {
+    // Ensure message exists and fetch its helpId
+    const msg = await this.prisma.helpMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, helpId: true, senderId: true },
+    });
+    if (!msg) throw new NotFoundException('Help message not found');
+
+    // Do not create read status if user is the sender (already read by definition)
+    if (msg.senderId === userId) {
+      return { success: true };
+    }
+
+    // Upsert a HelpReadStatus record for this user/message
+    await this.prisma.helpReadStatus.upsert({
+      where: {
+        helpMessageId_helpId_userId: {
+          helpMessageId: messageId,
+          helpId: msg.helpId,
+          userId,
+        },
+      },
+      create: {
+        helpId: msg.helpId,
+        helpMessageId: messageId,
+        userId,
+      },
+      update: {},
+    });
+
+    return { success: true };
   }
 
   async markMessageAsRead(

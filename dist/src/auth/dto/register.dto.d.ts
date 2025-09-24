@@ -16,4 +16,5 @@ export declare class RegisterDto {
     local?: string;
     device_type?: any;
     Aliyun_token?: string;
+    password?: string;
 }

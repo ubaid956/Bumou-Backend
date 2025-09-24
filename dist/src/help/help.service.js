@@ -341,6 +341,7 @@ let HelpService = HelpService_1 = class HelpService {
             },
             include: {
                 sender: true,
+                readBy: true,
             },
             take: 100,
             orderBy: {
@@ -348,6 +349,33 @@ let HelpService = HelpService_1 = class HelpService {
             },
         });
         return helpMessages;
+    }
+    async markHelpMessageAsRead(userId, messageId) {
+        const msg = await this.prisma.helpMessage.findUnique({
+            where: { id: messageId },
+            select: { id: true, helpId: true, senderId: true },
+        });
+        if (!msg)
+            throw new common_1.NotFoundException('Help message not found');
+        if (msg.senderId === userId) {
+            return { success: true };
+        }
+        await this.prisma.helpReadStatus.upsert({
+            where: {
+                helpMessageId_helpId_userId: {
+                    helpMessageId: messageId,
+                    helpId: msg.helpId,
+                    userId,
+                },
+            },
+            create: {
+                helpId: msg.helpId,
+                helpMessageId: messageId,
+                userId,
+            },
+            update: {},
+        });
+        return { success: true };
     }
     async markMessageAsRead(userId, helpMessageId, helpId) {
         let existingStatus = await this.prisma.helpReadStatus.findFirst({

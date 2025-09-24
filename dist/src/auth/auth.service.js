@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -12,6 +45,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const argon = __importStar(require("argon2"));
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const nestjs_i18n_1 = require("nestjs-i18n");
@@ -34,40 +68,39 @@ let AuthService = class AuthService {
         return { ...user, access_token };
     }
     async _registerDevice(Aliyun_token, device_type, userId) {
-        this.prisma.userDeviceToken.deleteMany({});
-        const tokens = await this.prisma.userDeviceToken.findMany({
+        const logger = new common_1.Logger('AuthService');
+        logger.debug('Registering device token for user: ' + userId);
+        const existing = await this.prisma.userDeviceToken.findFirst({
             where: {
-                AND: [
-                    {
-                        userId: { equals: userId },
-                    },
-                ],
+                userId: userId,
+                token: Aliyun_token,
             },
         });
-        const logger = new common_1.Logger('AuthService');
-        logger.debug('Token created successfully 1 --> ' + tokens.length);
-        logger.debug('Token created successfully 2 --> ' + device_type);
-        logger.debug('Token created successfully 3 --> ' + userId);
-        logger.debug('Token created successfully 3 --> ' + Aliyun_token);
-        if (tokens.length == 0) {
-            await this.prisma.userDeviceToken.create({
-                data: {
-                    token: Aliyun_token,
-                    userId: userId,
-                    device_type: device_type,
-                },
-            });
-            logger.debug('Token created successfully --> ' + Aliyun_token);
+        if (!existing) {
+            const userTokens = await this.prisma.userDeviceToken.findMany({ where: { userId } });
+            if (userTokens.length === 0) {
+                await this.prisma.userDeviceToken.create({
+                    data: {
+                        token: Aliyun_token,
+                        userId: userId,
+                        device_type: device_type,
+                    },
+                });
+                logger.debug('Token created successfully --> ' + Aliyun_token);
+            }
+            else {
+                await this.prisma.userDeviceToken.updateMany({
+                    where: { userId: userId },
+                    data: {
+                        device_type: device_type,
+                        token: Aliyun_token,
+                    },
+                });
+                logger.debug('Token(s) updated successfully --> ' + Aliyun_token);
+            }
         }
         else {
-            await this.prisma.userDeviceToken.updateMany({
-                where: { userId: userId },
-                data: {
-                    device_type: device_type,
-                    token: Aliyun_token,
-                },
-            });
-            logger.debug('Token created successfully --> ' + Aliyun_token);
+            logger.debug('Device token already registered for user: ' + userId);
         }
     }
     async isUsernameAvailable(username) {
@@ -119,13 +152,28 @@ let AuthService = class AuthService {
                 lang: nestjs_i18n_1.I18nContext.current().lang,
             }));
         }
-        const otpResult = await this.otpService.sendOtp(user.phone);
-        return {
-            message: otpResult.success
-                ? 'OTP sent successfully'
-                : 'Failed to send OTP',
-            retryAfter: otpResult.retryAfter,
-        };
+        if (!loginDto.password) {
+            throw new common_1.ForbiddenException(this.i18n.translate('t.password_required', {
+                lang: nestjs_i18n_1.I18nContext.current().lang,
+            }));
+        }
+        if (!user.isVerified) {
+            throw new common_1.ForbiddenException(this.i18n.translate('t.user_not_verified', {
+                lang: nestjs_i18n_1.I18nContext.current().lang,
+            }));
+        }
+        const validPassword = await argon.verify(user.password, loginDto.password).catch(() => false);
+        if (!validPassword) {
+            throw new common_1.ForbiddenException(this.i18n.translate('t.invalid_password', {
+                lang: nestjs_i18n_1.I18nContext.current().lang,
+            }));
+        }
+        const access_token = await this.signToken(user);
+        if (loginDto.Aliyun_token && loginDto.device_type) {
+            await this._registerDevice(loginDto.Aliyun_token, loginDto.device_type, user.id);
+        }
+        const { password, ...safeUser } = user;
+        return { ...safeUser, access_token };
     }
     async verifyOtp(phone, otp, dto) {
         const isValid = await this.otpService.verifyOtp(phone, otp);
@@ -136,6 +184,8 @@ let AuthService = class AuthService {
         }
         let user = await this.prisma.user.findFirst({ where: { phone } });
         if (!user) {
+            const rawPassword = dto.password ?? Math.random().toString(36).slice(-8);
+            const hashed = await argon.hash(rawPassword);
             user = await this.prisma.user.create({
                 data: {
                     username: dto.username,
@@ -152,7 +202,8 @@ let AuthService = class AuthService {
                     className: dto.className,
                     teacherName: dto.teacherName,
                     local: dto.local,
-                    password: "1233",
+                    password: hashed,
+                    isVerified: true,
                 },
             });
         }

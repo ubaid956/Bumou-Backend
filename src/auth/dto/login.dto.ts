@@ -16,4 +16,9 @@ export class LoginDto {
 
   @IsOptional()
   Aliyun_token?: any;
+
+  // Allow password-based login: when present, service will validate and return token
+  @IsOptional()
+  @IsString()
+  password?: string;
 }

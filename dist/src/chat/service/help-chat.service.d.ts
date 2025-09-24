@@ -1,9 +1,17 @@
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushNotificationService } from 'src/aliyun-Notification/push-notification.service';
+interface HelpNotificationData {
+    receiverId: string;
+    message: string;
+    title: string;
+    data: any;
+}
 export declare class HelpChatService {
     private readonly prisma;
     private readonly pushNotificationService;
+    private recentMessages;
     constructor(prisma: PrismaService, pushNotificationService: PushNotificationService);
+    handleHelpNotification(notificationData: HelpNotificationData): Promise<void>;
     handleNewHelpMessage(payload: any): Promise<{
         help: {
             helper: {
@@ -137,3 +145,4 @@ export declare class HelpChatService {
         helpId: string;
     }>;
 }
+export {};

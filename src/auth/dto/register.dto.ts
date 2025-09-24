@@ -76,4 +76,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   Aliyun_token?: string;
+
+  // Optional password supplied during registration; if provided it will be hashed when user is created
+  @IsOptional()
+  @IsString()
+  password?: string;
 }

@@ -5,10 +5,7 @@ import { VerifyOtpDto } from './dto/otp.dto';
 export declare class AuthController {
     private authService;
     constructor(authService: AuthService);
-    login(loginDto: LoginDto): Promise<{
-        message: string;
-        retryAfter: number;
-    }>;
+    login(loginDto: LoginDto): Promise<any>;
     verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
         access_token: string;
         id: string;

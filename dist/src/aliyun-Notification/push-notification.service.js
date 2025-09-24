@@ -20,12 +20,29 @@ let PushNotificationService = PushNotificationService_1 = class PushNotification
         this.userService = userService;
         this.aliyunPushService = aliyunPushService;
         this.logger = new common_1.Logger(PushNotificationService_1.name);
+        this.recentNotifications = new Map();
+        this.privateChatNotifications = new Map();
+        this.DEDUPE_TTL_MS = 10000;
     }
     async sendPushNotification(payload) {
         try {
-            for (const userId of payload.userIds) {
-                const deviceTokens = await this.userService.getDeviceTokens(userId);
+            const uniqueUserIds = Array.from(new Set(payload.userIds || []));
+            for (const userId of uniqueUserIds) {
+                const deviceTokens = await this.userService.getDeviceTokens(userId) || [];
+                const seen = new Set();
+                const uniqueDeviceTokens = [];
                 for (const tokenInfo of deviceTokens) {
+                    const token = tokenInfo?.token;
+                    if (!token)
+                        continue;
+                    if (seen.has(token)) {
+                        this.logger.log(`Skipping duplicate device token for user ${userId}: ${token}`);
+                        continue;
+                    }
+                    seen.add(token);
+                    uniqueDeviceTokens.push(tokenInfo);
+                }
+                for (const tokenInfo of uniqueDeviceTokens) {
                     const pushParams = {
                         deviceToken: tokenInfo.token,
                         title: payload.title || 'Notification',
@@ -36,17 +53,31 @@ let PushNotificationService = PushNotificationService_1 = class PushNotification
                         },
                         appKey: tokenInfo.device_type === 'ios' ? 335278915 : 334974694
                     };
+                    const dedupeKey = `${userId}:${payload.type}:${pushParams.content}:${JSON.stringify(payload.data || {})}`;
+                    const now = Date.now();
+                    for (const [k, ts] of this.recentNotifications) {
+                        if (now - ts > this.DEDUPE_TTL_MS) {
+                            this.recentNotifications.delete(k);
+                        }
+                    }
+                    if (this.recentNotifications.has(dedupeKey)) {
+                        this.logger.log(`Skipping recently sent notification (deduped): ${dedupeKey}`);
+                        continue;
+                    }
                     try {
+                        this.logger.log(`📱 Attempting to send push notification to ${tokenInfo.device_type} device: ${tokenInfo.token}`);
                         if (tokenInfo.device_type === 'ios') {
                             await this.aliyunPushService.pushToIOS(pushParams);
                         }
                         else {
                             await this.aliyunPushService.pushToAndroid(pushParams);
                         }
-                        this.logger.log(`Push sent to user ${userId}, device: ${tokenInfo.token}`);
+                        this.recentNotifications.set(dedupeKey, Date.now());
+                        this.logger.log(`✅ Push sent successfully to user ${userId}, device: ${tokenInfo.token}`);
                     }
                     catch (error) {
-                        this.logger.error(`Failed to push to device ${tokenInfo.token}: ${error.message}`);
+                        this.logger.error(`❌ Failed to push to device ${tokenInfo.token}: ${error.message}`);
+                        this.logger.error(`❌ Push error details: ${JSON.stringify(error, null, 2)}`);
                     }
                 }
             }
@@ -75,17 +106,55 @@ let PushNotificationService = PushNotificationService_1 = class PushNotification
         }
     }
     async sendMessageNotification(chatMessage) {
-        const notificationPayload = {
-            userIds: [chatMessage.receiverId],
-            type: notification_payload_dto_1.NotificationType.MESSAGE,
-            content: chatMessage.message,
-            title: chatMessage.senderName,
-            data: {
-                sender: chatMessage.senderId,
-                type: chatMessage.type,
-            },
-        };
-        await this.sendPushNotification(notificationPayload);
+        const requestId = Math.random().toString(36).substring(7);
+        this.logger.log(`📨 [REQ:${requestId}] sendMessageNotification called for message from ${chatMessage.senderId} to ${chatMessage.receiverId}`);
+        try {
+            const messageHash = `${chatMessage.senderId}:${chatMessage.receiverId}:${chatMessage.message}`;
+            const timeBasedKey = `${messageHash}:${Math.floor(Date.now() / 1000)}`;
+            const chatroomKey = `${messageHash}:${chatMessage.chatroomId || 'unknown'}`;
+            const now = Date.now();
+            this.cleanupOldNotifications();
+            const duplicateKeys = [messageHash, timeBasedKey, chatroomKey];
+            let isDuplicate = false;
+            let matchedKey = '';
+            for (const key of duplicateKeys) {
+                if (this.privateChatNotifications.has(key)) {
+                    const lastSent = this.privateChatNotifications.get(key) || 0;
+                    if (now - lastSent <= this.DEDUPE_TTL_MS) {
+                        isDuplicate = true;
+                        matchedKey = key;
+                        break;
+                    }
+                }
+            }
+            if (isDuplicate) {
+                this.logger.log(`🚫 [REQ:${requestId}] BLOCKED duplicate private chat notification: ${matchedKey}`);
+                return;
+            }
+            const senderUser = await this.userService.getUserById(chatMessage.senderId);
+            const senderName = senderUser?.username || 'Someone';
+            this.logger.log(`💬 [REQ:${requestId}] Processing private chat notification: ${senderName} -> User ${chatMessage.receiverId}`);
+            const notificationPayload = {
+                userIds: [chatMessage.receiverId],
+                type: notification_payload_dto_1.NotificationType.MESSAGE,
+                content: chatMessage.message,
+                title: senderName,
+                data: {
+                    sender: chatMessage.senderId,
+                    senderName: senderName,
+                    type: chatMessage.type,
+                    chatroomId: chatMessage.chatroomId
+                },
+            };
+            await this.sendPushNotification(notificationPayload);
+            for (const key of duplicateKeys) {
+                this.privateChatNotifications.set(key, now);
+            }
+            this.logger.log(`✅ [REQ:${requestId}] Private chat notification sent successfully`);
+        }
+        catch (error) {
+            this.logger.error(`❌ [REQ:${requestId}] Failed to send private chat notification: ${error.message}`);
+        }
     }
     async sendCommentNotification(commentData) {
         const notificationPayload = {
@@ -116,6 +185,19 @@ let PushNotificationService = PushNotificationService_1 = class PushNotification
             },
         };
         await this.sendPushNotification(notificationPayload);
+    }
+    cleanupOldNotifications() {
+        const now = Date.now();
+        for (const [key, timestamp] of this.recentNotifications) {
+            if (now - timestamp > this.DEDUPE_TTL_MS) {
+                this.recentNotifications.delete(key);
+            }
+        }
+        for (const [key, timestamp] of this.privateChatNotifications) {
+            if (now - timestamp > this.DEDUPE_TTL_MS) {
+                this.privateChatNotifications.delete(key);
+            }
+        }
     }
 };
 exports.PushNotificationService = PushNotificationService;

@@ -59,10 +59,7 @@ export declare class AuthService {
         retryAfter: number;
         userDetials: RegisterDto;
     }>;
-    login(loginDto: LoginDto): Promise<{
-        message: string;
-        retryAfter: number;
-    }>;
+    login(loginDto: LoginDto): Promise<any>;
     verifyOtp(phone: string, otp: string, dto: VerifyOtpDto): Promise<{
         access_token: string;
         id: string;

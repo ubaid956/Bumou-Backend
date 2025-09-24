@@ -17,4 +17,5 @@ export declare class VerifyOtpDto {
     className?: string;
     teacherName?: string;
     local?: string;
+    password?: string;
 }

@@ -17,6 +17,16 @@ export class MessageService {
   ) { }
 
   async onNewMessage(message: ChatMessageDto) {
+    const requestId = Math.random().toString(36).substring(7);
+    const serverTime = new Date();
+    logger.log(`🔥 [MSG-SVC-REQ:${requestId}] onNewMessage called at ${serverTime.toISOString()}`);
+    logger.log(`📦 [MSG-SVC-REQ:${requestId}] Message details:`, {
+      senderId: message?.senderId,
+      receiverId: message?.receiverId,
+      message: message?.message?.substring(0, 50) + '...',
+      chatroomId: message?.chatroomId,
+      type: message?.type
+    });
 
     let chatroomId = message.chatroomId;
     if (!chatroomId) {
@@ -181,6 +191,8 @@ export class MessageService {
 
     this.pushNotificationService.sendMessageNotification(message);
 
+    logger.log(`✅ [MSG-SVC-REQ:${requestId}] onNewMessage completed, calling push notification`);
+    logger.log(`📅 [MSG-SVC-REQ:${requestId}] Final message timestamp: ${chatroom.messages[0]?.createdAt?.toISOString()}`);
     logger.debug('CHATROOM ' + chatroom);
 
     return {

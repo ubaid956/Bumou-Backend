@@ -28,6 +28,8 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
         this.messageService = messageService;
         this.prisma = prisma;
         this.helpChatService = helpChatService;
+        this.recentMessages = new Map();
+        this.GATEWAY_DEDUPE_TTL_MS = 3000;
     }
     async onModuleInit() {
         console.log('Socket server is running');
@@ -151,38 +153,83 @@ let ChatGateway = ChatGateway_1 = class ChatGateway {
         }
     }
     async handleMessage(client, message) {
+        const requestId = Math.random().toString(36).substring(7);
+        console.log(`🔥 [GATEWAY-REQ:${requestId}] NEW MESSAGE received from client ${client.id}`);
+        console.log(`📦 [GATEWAY-REQ:${requestId}] Message:`, {
+            senderId: message?.senderId,
+            receiverId: message?.receiverId,
+            message: message?.message?.substring(0, 50) + '...',
+            chatroomId: message?.chatroomId,
+            type: message?.type
+        });
         if (!message) {
+            console.log(`❌ [GATEWAY-REQ:${requestId}] Empty message received`);
             return;
         }
+        const messageKey = `${message.senderId}:${message.receiverId}:${message.message}:${message.type}`;
+        const now = Date.now();
+        for (const [key, timestamp] of this.recentMessages) {
+            if (now - timestamp > this.GATEWAY_DEDUPE_TTL_MS) {
+                this.recentMessages.delete(key);
+            }
+        }
+        if (this.recentMessages.has(messageKey)) {
+            const lastReceived = this.recentMessages.get(messageKey) || 0;
+            if (now - lastReceived <= this.GATEWAY_DEDUPE_TTL_MS) {
+                console.log(`🚫 [GATEWAY-REQ:${requestId}] DUPLICATE MESSAGE BLOCKED at gateway level: ${messageKey}`);
+                client.emit('acknowledge', { success: true });
+                return;
+            }
+        }
+        this.recentMessages.set(messageKey, now);
         const success = true;
         client.emit('acknowledge', { success });
+        console.log(`🔄 [GATEWAY-REQ:${requestId}] Calling messageService.onNewMessage`);
         const response = await this.messageService.onNewMessage(message);
         this.server
             .to([message.senderId, message.receiverId])
             .emit(ChatGateway_1.chatEvent, response);
+        console.log(`✅ [GATEWAY-REQ:${requestId}] Message handling completed`);
     }
     async handleHelpMessage(client, payload) {
+        console.log('🔥 HELP MESSAGE HANDLER CALLED - handleHelpMessage');
+        console.log('📦 Payload:', JSON.stringify(payload, null, 2));
         try {
             if (!payload ||
                 !payload.message ||
                 !payload.senderId ||
                 !payload.helpId) {
-                console.log('Invalid help message payload: ', payload);
+                console.log('❌ Invalid help message payload: ', payload);
                 return;
             }
             const success = true;
             client.emit('acknowledge', { success });
+            console.log('📨 Processing help message...');
             const response = await this.helpChatService.handleNewHelpMessage(payload);
+            if (!response) {
+                console.log('🚫 Duplicate message ignored - skipping notification and socket emit');
+                return;
+            }
             const senderId = response.help.helper.id;
             const receiverId = response.help.requestedBy.id;
+            const notificationReceiverId = payload.senderId === receiverId ? senderId : receiverId;
+            console.log('🔔 Sending notification to user:', notificationReceiverId);
+            console.log('📤 Sender:', payload.senderId, 'Receiver:', notificationReceiverId);
+            await this.helpChatService.handleHelpNotification({
+                receiverId: notificationReceiverId,
+                message: response.message,
+                title: response.sender?.username || 'Help Message',
+                data: response
+            });
+            console.log('📡 Emitting socket event to users:', [senderId, receiverId]);
             this.emitHelpMessage(response, [senderId, receiverId]);
+            console.log('✅ Help message processed successfully');
         }
         catch (error) {
-            console.log('Error handling help message: ', error);
+            console.log('❌ Error handling help message: ', error);
         }
     }
     async handleHelpRequestEvent(client, payload) { }
-    async handleHelpMessageEvent(client, payload) { }
     async handleMakeCall(client, data) {
         try {
             console.log("calling");
@@ -274,13 +321,6 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleHelpRequestEvent", null);
-__decorate([
-    (0, websockets_1.SubscribeMessage)(ChatGateway.helpMessageEvent),
-    __param(1, (0, websockets_1.MessageBody)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
-    __metadata("design:returntype", Promise)
-], ChatGateway.prototype, "handleHelpMessageEvent", null);
 __decorate([
     (0, websockets_1.SubscribeMessage)('newCall'),
     __param(1, (0, websockets_1.MessageBody)()),

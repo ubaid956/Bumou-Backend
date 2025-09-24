@@ -4,4 +4,5 @@ export declare class LoginDto {
     userType: UserType;
     device_type?: any;
     Aliyun_token?: any;
+    password?: string;
 }

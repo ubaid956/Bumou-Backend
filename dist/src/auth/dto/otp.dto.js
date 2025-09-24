@@ -100,4 +100,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], VerifyOtpDto.prototype, "local", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VerifyOtpDto.prototype, "password", void 0);
 //# sourceMappingURL=otp.dto.js.map

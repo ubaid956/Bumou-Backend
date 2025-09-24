@@ -21,6 +21,16 @@ let MessageService = class MessageService {
         this.pushNotificationService = pushNotificationService;
     }
     async onNewMessage(message) {
+        const requestId = Math.random().toString(36).substring(7);
+        const serverTime = new Date();
+        nestjs_i18n_1.logger.log(`🔥 [MSG-SVC-REQ:${requestId}] onNewMessage called at ${serverTime.toISOString()}`);
+        nestjs_i18n_1.logger.log(`📦 [MSG-SVC-REQ:${requestId}] Message details:`, {
+            senderId: message?.senderId,
+            receiverId: message?.receiverId,
+            message: message?.message?.substring(0, 50) + '...',
+            chatroomId: message?.chatroomId,
+            type: message?.type
+        });
         let chatroomId = message.chatroomId;
         if (!chatroomId) {
             chatroomId = [message.receiverId, message.senderId].sort().join('_');
@@ -173,6 +183,8 @@ let MessageService = class MessageService {
             chatroom = { ...chatroom, unreadCount: chatroom._count?.messages };
         }
         this.pushNotificationService.sendMessageNotification(message);
+        nestjs_i18n_1.logger.log(`✅ [MSG-SVC-REQ:${requestId}] onNewMessage completed, calling push notification`);
+        nestjs_i18n_1.logger.log(`📅 [MSG-SVC-REQ:${requestId}] Final message timestamp: ${chatroom.messages[0]?.createdAt?.toISOString()}`);
         nestjs_i18n_1.logger.debug('CHATROOM ' + chatroom);
         return {
             chatroom: chatroom,
